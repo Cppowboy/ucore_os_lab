@@ -302,10 +302,12 @@ lab1中包含一个bootloader和一个OS。这个bootloader可以切换到X86保
     }
     SETGATE(idt[T_SWITCH_TOK],0,GD_KTEXT,__vectors[T_SWITCH_TOK],3);
     lidt(&idt_pd);
+    首先使用tools/vectors.c中的vectors数组，对256个中断描述符，每个都要用SETGATE进行初始化。最后通过lidt函数告诉CPU应该使用哪个IDT。
     请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写trap函数中处理时钟中断的部分，使操作系统每遇到100次时钟中断后，调用print_ticks子程序，向屏幕上打印一行文字”100 ticks”。
     ticks++;
     if(ticks%TICK_NUM==0)
         print_ticks();
     break;
+    每次给ticks加一，如果是TICK_NUM的倍数，就打印100ticks。
 
 
