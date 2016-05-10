@@ -48,28 +48,28 @@ default_alloc_pages(size_t n) {
     }
     list_entry_t *le,*nxt;
     le = &free_list;
-    while ((le = list_next(le)) != &free_list) {
-        struct Page *p = le2page(le, page_link);
-        if (p->property >= n) {
+    while ((le = list_next(le)) != &free_list) {        //遍历
+        struct Page *p = le2page(le, page_link);        //获取对应的page结构
+        if (p->property >= n) {                         //空闲块大小大于n
             int i;
-            for(i=0;i<n;i++)
+            for(i=0;i<n;i++)                            //删除这n个空闲块
             {
                 nxt=list_next(le);
                 struct Page* pp=le2page(le,page_link);
-                SetPageReserved(pp);
-                ClearPageProperty(pp);
-                list_del(le);
+                SetPageReserved(pp);                    //设为被占用
+                ClearPageProperty(pp);                  //清除标记
+                list_del(le);                           //从列表中删除
                 le=nxt;
             }
 
-            if(p->property>n)
+            if(p->property>n)                           //如果还有剩余，新建一个表项
             {
                 struct Page* newpage=le2page(le,page_link);
-                newpage->property=p->property-n;
+                newpage->property=p->property-n;        //新表项的大小是property-n
             }
-            ClearPageProperty(p);
-            SetPageReserved(p);
-            nr_free-=n;
+            ClearPageProperty(p);                       //清除标记
+            SetPageReserved(p);                         //被占用
+            nr_free-=n;                                 //空余数减1
             return p;
             break;
         }
@@ -84,7 +84,7 @@ default_free_pages(struct Page *base, size_t n) {
 
     list_entry_t *le=&free_list;
     struct Page * p;
-    while((le=list_next(le))!=&free_list)
+    while((le=list_next(le))!=&free_list)               //遍历查找base对应的那一个表项
     {
       p=le2page(le,page_link);
       if(p>base)
@@ -93,17 +93,17 @@ default_free_pages(struct Page *base, size_t n) {
       }
     }
     //list_add_before(le, base->page_link);
-    for(p=base;p<base+n;p++){
+    for(p=base;p<base+n;p++){                       //新添加n个表项
       list_add_before(le,&(p->page_link));
     }
-    base->flags=0;
-    set_page_ref(base,0);
+    base->flags=0;                                  //清除标记
+    set_page_ref(base,0);                           //访问次数是0
     ClearPageProperty(base);
     SetPageProperty(base);
-    base->property=n;
+    base->property=n;                               //空闲块数量n
     
     p=le2page(le,page_link);
-    if(base+n==p)
+    if(base+n==p)                                   //合并可以被合并的空闲块
     {
       base->property+=p->property;
       p->property=0;
@@ -116,15 +116,15 @@ default_free_pages(struct Page *base, size_t n) {
       {
         if(p->property)
         {
-          p->property+=base->property;
-          base->property=0;
+          p->property+=base->property;              //空闲块的大小增加
+          base->property=0;                         
           break;
         }
         le=list_prev(le);
         p=le2page(le,page_link);
       }
     }
-    nr_free+=n;
+    nr_free+=n;                                 //空闲块数量加n
     return ;
 }
 
