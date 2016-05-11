@@ -168,6 +168,52 @@ first-fit算法的改进空间，first-fit算法每次在列表中查找第一�
     return ka+PTX(la);
 //    return &((pte_t*)KADDR(PDE_ADDR(*pdep)))[PTX(la)];
 ```
+
+请描述页目录项（Pag Director Entry）和页表（Page Table Entry）中每个组成部分的含义和以及对ucore而言的潜在用处。
+
+```
+// page directory index
+#define PDX(la) ((((uintptr_t)(la)) >> PDXSHIFT) & 0x3FF)
+//二级页表在页目录项当中的index，用来作为索引查询二级页表
+// page table index
+#define PTX(la) ((((uintptr_t)(la)) >> PTXSHIFT) & 0x3FF)
+
+// page number field of address
+#define PPN(la) (((uintptr_t)(la)) >> PTXSHIFT)
+
+// offset in page
+#define PGOFF(la) (((uintptr_t)(la)) & 0xFFF)
+
+// construct linear address from indexes and offset
+#define PGADDR(d, t, o) ((uintptr_t)((d) << PDXSHIFT | (t) << PTXSHIFT | (o)))
+
+// address in page table or page directory entry
+页表或者页目录项的地址
+#define PTE_ADDR(pte)   ((uintptr_t)(pte) & ~0xFFF)
+#define PDE_ADDR(pde)   PTE_ADDR(pde)
+
+/* page table/directory entry flags */
+#define PTE_P           0x001                   // Present，是否存在
+#define PTE_W           0x002                   // Writeable，是否可写
+#define PTE_U           0x004                   // User，用户的权限
+#define PTE_PWT         0x008                   // Write-Through，可否拖后写
+#define PTE_PCD         0x010                   // Cache-Disable，可否支持cache
+#define PTE_A           0x020                   // Accessed，是否可访问
+#define PTE_D           0x040                   // Dirty，是否是脏页
+#define PTE_PS          0x080                   // Page Size，页的大小
+#define PTE_MBZ         0x180                   // Bits must be zero
+#define PTE_AVAIL       0xE00                   // Available for software use
+                                                // The PTE_AVAIL bits aren't used by the kernel or interpreted by the，是否可用
+                                                // hardware, so user processes are allowed to set them arbitrarily.
+
+#define PTE_USER        (PTE_U | PTE_W | PTE_P)
+
+```
+
+如果ucore执行过程中访问内存，出现了页访问异常，请问硬件要做哪些事情？
+
+当出现页面访问异常的时候，会进入中断处理程序，从把页表从硬盘读到内存中，继续后续的运行，在此过程中要维护现场，保存一些寄存器的值。
+
 ###练习3：释放某虚地址所在的页并取消对应二级页表项的映射
 当释放一个包含某虚地址的物理内存页时，需要让对应此物理内存页的管理数据结构Page做相关的清除处理，使得此物理内存页成为空闲；另外还需把表示虚地址与物理地址对应关系的二级页表项清除。请仔细查看和理解page_remove_pte函数中的注释。
 需要修改/kern/mm/mm.c下的page_remove_pte函数。
@@ -190,3 +236,8 @@ first-fit算法的改进空间，first-fit算法每次在列表中查找第一�
         tlb_invalidate(pgdir,la);
     }
 ```
+
+数据结构Page的全局变量（其实是一个数组）的每一项与页表中的页目录项和页表项有无对应关系？如果有，其对应关系是啥？
+有对应关系，页表项的基地址存在页目录项中。
+如果希望虚拟地址与物理地址相等，则需要如何修改lab2，完成此事？
+ 
