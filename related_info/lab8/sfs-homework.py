@@ -245,17 +245,26 @@ class fs:
 
         inum = self.nameToInum[tfile]
 
-    # YOUR CODE, YOUR ID
+    # YOUR CODE, 2012010770
         # IF inode.refcnt ==1, THEN free data blocks first, then free inode, ELSE dec indoe.refcnt
         # remove from parent directory: delete from parent inum, delete from parent addr
     # DONE
-
+        self.inodes[inum].decRefCnt()
+        if self.inodes[inum].getRefCnt()==0:
+            address=self.inodes[inum].addr 
+            if address>=0:
+                self.dataFree(address)
+            self.inodeFree(inum)
+        parent=self.getParent(tfile)
+        pinum=self.nameToInum[parent]
+        self.inodes[pinum].decRefCnt()
+        self.data[self.inodes[pinum].getAddr()].delDirEntry(tfile)
         # finally, remove from files list
         self.files.remove(tfile)
         return 0
 
     def createLink(self, target, newfile, parent):
-    # YOUR CODE, YOUR ID
+    # YOUR CODE, 2012010770
         # find info about parent
         # is there room in the parent directory?
         # if the newfile was already in parent dir?
@@ -263,10 +272,17 @@ class fs:
         # inc parent ref count
         # now add to directory
     # DONE
+        pinum=self.nameToInum[parent]
+        paddr=self.inodes[pinum].getAddr()
+        if self.data[paddr].getFreeEntries()==0 or self.data[paddr].dirEntryExists(newfile):
+            return -1
+        tinum=self.nameToInum[target]
+        self.inodes[pinum].incRefCnt()
+        self.data[paddr].addDirEntry(newfile,tinum)
         return tinum
 
     def createFile(self, parent, newfile, ftype):
-    # YOUR CODE, YOUR ID
+    # YOUR CODE, 2012010770
         # find info about parent
         # is there room in the parent directory?
         # have to make sure file name is unique
@@ -276,6 +292,27 @@ class fs:
         # inc parent ref count
         # and add to directory of parent
     # DONE
+        pinum=self.nameToInum[parent]
+        paddr=self.inodes[pinum].getAddr()
+        if self.data[paddr].getFreeEntries()==0:
+            return -1
+        if self.data[paddr].dirEntryExists(newfile):
+            return -1
+        inum=self.inodeAlloc()
+        if inum==-1:
+            return -1
+        if ftype=='d':
+            newdata=self.dataAlloc()
+            if newdata==-1:
+                return -1
+            self.data[newdata].setType('d')
+            self.data[newdata].addDirEntry('.',pinum)
+            self.data[newdata].addDirEntry('..',inum)
+            self.inodes[inum].setAll('d',newdata,2)
+        else:
+            self.inodes[inum].setAll('f',-1,1)
+        self.inodes[pinum].incRefCnt()
+        self.data[paddr].addDirEntry(newfile,inum)
         return inum
 
     def writeFile(self, tfile, data):
@@ -283,12 +320,20 @@ class fs:
         curSize = self.inodes[inum].getSize()
         dprint('writeFile: inum:%d cursize:%d refcnt:%d' % (inum, curSize, self.inodes[inum].getRefCnt()))
 
-    # YOUR CODE, YOUR ID
+    # YOUR CODE, 2012010770
         # file is full?
         # no data blocks left
         # write file data
     # DONE
-
+        if curSize==0:
+            addr=self.dataAlloc();
+            if addr==-1:
+                return -1
+            self.inodes[inum].setAddr(addr);
+            self.data[addr].setType('f');
+        else:
+            addr = self.inodes[inum].getAddr()
+        self.data[addr].addData(data)
         if printOps:
             print 'fd=open("%s", O_WRONLY|O_APPEND); write(fd, buf, BLOCKSIZE); close(fd);' % tfile
         return 0
